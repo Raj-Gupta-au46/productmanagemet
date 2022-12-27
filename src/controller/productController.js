@@ -1,9 +1,9 @@
 const productModel = require('../models/productModel');
 const validator = require("../Validators/validation");
-const { uploadFile } = require('../aws/aws');
+const  uploadFile  = require('../aws/aws');
 
 
-//================================================ creating product ==============================================
+//================================================ creating product ==========================================
 
 const createProduct = async function (req, res) {
     try {
@@ -126,7 +126,7 @@ const getProduct = async function (req, res) {
             //================================ if size query is present ==========================================
             if (size) {
                 let checkSizes = ["S", "XS", "M", "X", "L", "XXL", "XL"]
-                let arraySize = size.split(",")
+                let arraySize = size.toUpperCase().split(",")
                 for (let i = 0; i < arraySize.length; i++) {
                     if (checkSizes.includes(arraySize[i])) {
                         continue;
@@ -206,75 +206,89 @@ const getProductById = async function (req, res) {
 }
 
 //====================================updateProduct====================================
-const updateProduct = async function (req, res) {
-    try {
-        let productId = req.params.productId
-        let files = req.files
-        if (!productId) return res.status(400).send({ status: false, msg: "productId is not present" })
-        if (!mongoose.isValidObjectId(productId)) return res.status(400).send({ status: true, msg: "productId is not valid" })
-
-        let productData = await productModel.findOne({ _id: productId, isDeleted: false })
-        if (!productData) return res.status(404).send({ status: false, msg: "product is not availble or deleted" })
-
-        let { title, description, price, currencyId, availableSizes, installments, isFreeShipping, style } = data
-
-        let update = {}
-
-        if (title) {
-
-            if (!validator.isValidName(title)) return res.status(400).send({ status: false, msg: "title is not valid" })
-            let uniqueTitle = await productModel.findOne({ title: title })
-            if (uniqueTitle) return res.status(400).send({ status: false, msg: "title should be unique" })
-            productData.title = title
-        }
-        if (description) {
-            if (!validator.isValidName(description)) return res.status(400).send({ status: false, msg: "title is not valid" })
-            update.description = description
-        }
-        if (currencyId) {
-            if (currencyId != 'INR') return res.status(400).send({ status: false, msg: "currencyId is not valid" })
-            update.currencyId = currencyId
-        }
-
-        if (price) {
-            data.price = Number(price)
-            if (isNaN(price)) return res.status(400).send({ status: false, msg: "please provide valid price" })
-            update.price = price
-        }
-        if (availableSizes) {
-            if (!["S", "XS", "M", "X", "L", "XXL", "XL"].includes(availableSizes)) return res.status(400).send({ status: false, msg: "wrong availableSizes" })
-            update.availableSizes = availableSizes
-        }
-        if (installments) {
-            installments = Number(installments)
-            if (isNaN(installments)) return res.status(400).send({ status: false, msg: "please provide valid price" })
-            update.installments = installments
-        }
-        if (isFreeShipping) {
-            if (isFreeShipping != "true" || isFreeShipping != "false") return res.status(400).send({ status: false, msg: "isFreeShiping value should true or false" })
-                (isFreeShipping == "true") ? isFreeShipping = true : isFreeShipping = false
-        }
-        if (style) {
-            if (!validator.isValidName(style)) return res.status(400).send({ status: false, msg: "style is not valid" })
-            update.style = style
-        }
-        if (files || files.length > 0) {
-            let imageLink = await uploadFile(files[0])
-            update.productImage = imageLink
-            if (!validator.validImage(imageLink)) {
-                return res.status(400).send({ status: false, msg: "profileImage is in incorrect format" })
-            }
-        }
-
-
-        const updateProduct = await productModel.findOneAndUpdate({ _id: productId }, update, { new: true })
-        return res.status(200).send({ status: true, msg: "product is updated", data: updateProduct })
+const updateProduct=async function(req,res){
+    try{
+        let productId=req.params.productId
+        let files=req.files
+        let data=req.body
+        if(!productId) return res.status(400).send({status:false,msg:"productId is not present"})
+        if(!validator.isValidObjectId(productId))return res.status(400).send({status:true,msg:"productId is not valid"})
+        
+        let productData=await productModel.findOne({_id:productId , isDeleted : false})
+        if(!productData) return res.status(404).send({status:false,msg:"product is not availble or deleted"})
+    
+        let { title,description,price,currencyId,availableSizes,installments,isFreeShipping,style} = data
+        
+    let update={}
+    
+    if(title){
+        title = title.replace(/\s+/g, ' ').trim()
+        if (!validator.isValid(title)) return res.status(400).send({ status: false, message: "title is in wrong format" });
+        if (!validator.isValidName(title)) return res.status(400).send({ status: false, msg: "title is not valid" })
+        let uniqueTitle= await productModel.findOne({title:title})
+        if(uniqueTitle) return res.status(400).send({status:false,msg:"title should be unique"})
+        productData.title=title
     }
-
-    catch (err) {
-        return res.status(500).send({ status: false, msg: err.message })
+    if(description){
+        description = description.replace(/\s+/g, ' ').trim()
+        if (!validator.isValid(description)) return res.status(400).send({ status: false, message: "description is in wrong format" });
+        if (!validator.isValidName(description)) return res.status(400).send({ status: false, msg: "title is not valid" })
+        update.description=description
     }
-}
+    if(currencyId){
+        if (!validator.isValid(currencyId)) return res.status(400).send({ status: false, message: "currencyId is in wrong format" });
+        if(currencyId!='INR') return res.status(400).send({ status: false, msg: "currencyId is not valid" })
+        update.currencyId=currencyId
+    }
+    
+    if(price){
+        if (!validator.isValid(price)) return res.status(400).send({ status: false, message: "price is in wrong format" });
+            price=Number(price)
+            if(isNaN(price))return res.status(400).send({status:false,msg:"please provide valid price"})
+            update.price=price
+    }
+    if(availableSizes){
+        availableSizes=availableSizes.toUpperCase()
+        if (!validator.isValid(availableSizes)) return res.status(400).send({ status: false, message: "availableSizes is in wrong format" });
+        availableSizes.split(",").map((availableSizes)=>{
+        if(!["S", "XS", "M", "X", "L", "XXL", "XL"].includes(availableSizes)) return res.status(400).send({status:false,msg:"wrong availableSizes"})
+         })
+         let result = [... new Set(availableSizes.split(","))]
+         update.availableSizes = result
+    }
+    if(installments){
+        if (!validator.isValid(installments)) return res.status(400).send({ status: false, message: "installments is in wrong format" });
+        installments=Number(installments)
+        if(isNaN(installments))return res.status(400).send({status:false,msg:"please provide valid price"})
+        update.installments=installments
+        }
+    if(isFreeShipping){
+        if (!validator.isValid(isFreeShipping)) return res.status(400).send({ status: false, message: "isFreeShipping is in wrong format" });
+        if(!["true","false"].includes(isFreeShipping)) return res.status(400).send({status:false,msg:"isFreeShiping value should true or false"})
+            update["isFreeShipping"]=isFreeShipping     
+        }
+    if(style){
+        if (!validator.isValid(style)) return res.status(400).send({ status: false, message: "style is in wrong format" });
+        if (!validator.isValidName(style)) return res.status(400).send({ status: false, msg: "style is not valid" })
+        update.style=style
+    }
+    if(files.length>0){
+           
+        let imageLink= await uploadFile(files[0].originalname)
+        update.productImage=imageLink
+        if (!validator.validImage(imageLink)) {
+            return res.status(400).send({ status: false, msg: "profileImage is in incorrect format" })
+        }
+    }
+    
+    const updateProduct = await productModel.findOneAndUpdate({_id:productId},update,{new:true,upsert:true})
+    return res.status(200).send({status:true,msg:"product is updated",data:updateProduct})
+    }
+    
+    catch(err){
+     return res.status(500).send({status:false,msg:err.message})
+    }
+    }
 
 
 
@@ -305,6 +319,10 @@ const deleteProduct = async (req, res) => {
 
 };
 
+
+
+
+module.exports = { createProduct, getProduct, getProductById, updateProduct, deleteProduct }
 
 
 

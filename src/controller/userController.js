@@ -9,6 +9,7 @@ const { default: mongoose } = require("mongoose");
 
 
 
+
 //========================================== creating user ===========================================
 const createUser = async function (req, res) {
     try {
@@ -47,6 +48,7 @@ const createUser = async function (req, res) {
 
         //============================== validation for profileimage =====================================
         if (!files && files.length == 0) return res.status(400).send({ status: false, msg: "profileImage is mandatory" })
+        
         let Image = await uploadFile(files[0]) // using aws for link creation 
         if (!validator.validImage(Image)) {
             return res.status(400).send({ status: false, msg: "profileImage is in incorrect format" })
@@ -68,7 +70,6 @@ const createUser = async function (req, res) {
             }
 
             if (!Address.shipping) return res.status(400).send({ status: false, message: "Shipping is not present" })
-
             if (Address.shipping) {
                 if (typeof Address.shipping != "object") {
                     return res.status(400).send({ status: false, message: "Shipping Address is in wrong format" })
@@ -79,6 +80,8 @@ const createUser = async function (req, res) {
                 if (!validator.isValidName(Address.shipping.city)) return res.status(400).send({ status: false, msg: "city name is not valid" })
                 if (!validator.isValidPincode(Address.shipping.pincode)) return res.status(400).send({ status: false, msg: "Pincode is not valid" })
             }
+
+            if (!Address.billing) return res.status(400).send({ status: false, message: "billing is not present" })
             if (Address.billing) {
                 if (typeof Address.billing != "object") {
                     return res.status(400).send({ status: false, message: "Shipping Address is in wrong format" })
@@ -175,24 +178,26 @@ const updateUser = async (req, res) => {
         var { fname, lname, email, phone, password, address } = req.body
 
         if (Object.keys(req.body).length == 0 && (!files || files.length == 0)) {
-
             return res.status(400).send({ status: false, message: "data required for profile updated" })
         }
+
+        let userData = await userModel.findOne({ _id: userId })
+        if (!userData) return res.status(404).send({ status: false, msg: "user data is not present" })
 
         let update = {}
 
         if (fname) {
+            if (!validator.isValid(fname)) return res.status(400).send({ status: false, msg: "fname is not valid" })
             if (!validator.isValidName(fname)) return res.status(400).send({ status: false, msg: "fname is not valid" })
-
             update.fname = fname
         }
         if (lname) {
-            if (!validator.isValidName(lname)) return res.status(400).send({ status: false, msg: "fname is not valid" })
-
+            if (!validator.isValid(lname)) return res.status(400).send({ status: false, msg: "lname is not valid" })
+            if (!validator.isValidName(lname)) return res.status(400).send({ status: false, msg: "lname is not valid" })
             update.lname = lname
         }
         if (email) {
-
+            if (!validator.isValid(email)) return res.status(400).send({ status: false, msg: "email is not valid" })
             if (!validator.isValidEmail(email)) {
                 return res.status(400).send({ status: false, message: `Please fill valid or mandatory email ` })
             }
@@ -213,28 +218,31 @@ const updateUser = async (req, res) => {
         }
 
         if (phone) {
+            if (!validator.isValid(phone)) return res.status(400).send({ status: false, msg: "phone is not valid" })
             if (!validator.isValidPhone(phone)) return res.status(400).send({ status: false, msg: "phone number is invalid , it should be starting with 6-9 and having 10 digits" })
             let phoneCheck = await userModel.findOne({ phone: phone })
             if (phoneCheck) return res.status(409).send({ status: false, msg: "phone number is already used" })
-
             update.phone = phone
         }
 
         if (password) {
-
+            if (!validator.isValid(password)) return res.status(400).send({ status: false, msg: "password is not valid" })
             if (!validator.isValidPassword(password)) return res.status(400).send({ status: false, message: "password is invalid ,it should be of minimum 8 digits and maximum of 15 and should have atleast one special character and one number & one uppercase letter" })
-
             update.password = await bcrypt.hash(password, 10)
-
         }
 
         if (address) {
 
-            address = JSON.parse(address)
-
+            try {
+                address = JSON.parse(address)
+            }
+            catch (err) {
+                return res.status(400).send({ status: false, message: "please provide adress in JSON object" })
+            }
+           
             if (address.shipping) {
 
-                if (typeof address.shipping != Object) return res.status(400).send({ status: false, msg: "shipping should be object" })
+                if (typeof address.shipping != "object") return res.status(400).send({ status: false, msg: "shipping should be object" })
 
                 if (address.shipping.street) {
 
@@ -254,8 +262,7 @@ const updateUser = async (req, res) => {
 
             if (address.billing) {
 
-                if (typeof address.billing != Object) return res.status(400).send({ status: false, msg: "billing should be object" })
-
+                if (typeof address.billing != "object") return res.status(400).send({ status: false, msg: "billing should be object" })
                 if (address.billing.street) {
 
                     if (!validator.isValidName(address.billing.street)) return res.status(400).send({ status: false, msg: "street name is not valid" })
@@ -282,6 +289,9 @@ const updateUser = async (req, res) => {
         return res.status(500).send({ status: false, msg: err.message })
     }
 }
+
+
+module.exports = {createUser,getUserData,loginUser,updateUser}
 
 
 module.exports = {createUser,getUserData,loginUser,updateUser}
